@@ -49,3 +49,4 @@ class FileWriter(IWriter):
             f.write(data)
 
 "hello"
+"i love you man"
