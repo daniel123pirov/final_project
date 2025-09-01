@@ -48,3 +48,4 @@ class FileWriter(IWriter):
         with open(machine_name + ".txt", "a", encoding="utf-8") as f:
             f.write(data)
 
+"hello"
