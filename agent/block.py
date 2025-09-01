@@ -50,3 +50,4 @@ class FileWriter(IWriter):
 
 "hello"
 "i love you man"
+"me too my friend"
