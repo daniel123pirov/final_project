@@ -52,3 +52,4 @@ class FileWriter(IWriter):
 "i love you man"
 "me too my friend"
 "my name is david spiller"
+"we are the best team !!!"
