@@ -40,3 +40,4 @@ class KeyLoggerService(IKeyLogger):
         temp = " ".join(self.buffer)
         self.buffer =[]
         return temp
+"hello"
