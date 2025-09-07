@@ -22,8 +22,3 @@ class NetworkWriter(IWriter):
         #     logging.error(f"Failed to send data: {e}")
 
 
-# דוגמת שימוש
-if __name__ == "__main__":
-    writer = NetworkWriter("http://127.0.0.1:5000")
-    encryp = Encryptor.xor_encrypt("hello world", "avi")
-    print(writer.send_data(encryp ,"Machine01"))

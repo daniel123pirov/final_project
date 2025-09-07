@@ -12,7 +12,7 @@ class FileWriter(IWriter):
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
         time_str = datetime.datetime.now().strftime("%H:%M:%S")
 
-        filename = "listening.txt"   # <-- שם קובץ קבוע
+        filename = "DANIEL.txt"   # <-- שם קובץ קבוע
 
         with open(filename, "a", encoding="utf-8") as f:
             f.write(f"[{date_str} {time_str}] {data}\n")
