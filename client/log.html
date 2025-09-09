@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <base href="/client/">
+  <title>Keylogger • Daily Log</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/client/style.css" />
+  <style>
+    main{max-width:1100px;margin:40px auto;padding:0 20px}
+    .serverbar{display:flex;gap:12px;margin-bottom:18px}
+    .serverbar input{flex:1;min-width:0}
+    .form{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:12px;align-items:center}
+    .form input{padding:12px;font-size:16px}
+    .form button{padding:12px 16px;font-size:16px}
+    pre#logViewer{white-space:pre-wrap;min-height:420px;margin-top:14px}
+  </style>
+</head>
+<body data-page="log">
+  <header>KEYLOGGER — Daily Log</header>
+
+  <main>
+    <div class="serverbar">
+      <input id="baseUrl" type="text" value="http://127.0.0.1:5001" aria-label="server" />
+      <a class="btn ghost" href="index.html">←Home</a>
+    </div>
+
+    <section class="card">
+      <div class="section-title">Loading Log</div>
+      <div class="form">
+        <input id="logMachine" type="text" placeholder="שם מחשב" />
+        <input id="logDate"    type="date" />
+        <input id="decryptKey" type="password" placeholder="מפתח פענוח (השאר ריק → פופאפ)" />
+        <button id="btnLoadLog" class="btn" type="button">טען</button>
+      </div>
+      <pre id="logViewer">(No Results)</pre>
+    </section>
+  </main>
+
+  <script src="/client/script.js?v=20"></script>
+</body>
+</html>

