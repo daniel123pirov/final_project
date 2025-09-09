@@ -151,47 +151,79 @@ function bindSearch(){
     });
   }
 }
+// Parse une ligne serveur "[ts]\tENC:...." → { ts, cipher }
+function parseServerLine(L) {
+  const [ts = "", cipher = ""] = (L || "").split("\t");
+  return { ts, cipher };
+}
 
-async function searchLogs(){
+async function searchLogs() {
   const container = document.getElementById("searchResults");
-  const key = globalKey; // garanti présent (gating à l'entrée)
-  const machine = document.getElementById("searchMachine").value.trim();
-  const date = document.getElementById("searchDate").value.trim();
-  const q = document.getElementById("searchKeywords").value.trim();
+
+  // 1) Demander la clé si besoin
+  const key = globalKey || (await openKeyModal());
+  if (!key) { showConsole(container, "⚠️ Decryption key required"); return; }
+
+  // 2) Lire les filtres (machine/date + mots-clés)
+  const machine = (document.getElementById("searchMachine")?.value || "").trim();
+  const date    = (document.getElementById("searchDate")?.value || "").trim();
+  const q       = (document.getElementById("searchKeywords")?.value || "").trim().toLowerCase();
+  const terms   = q ? q.split(/\s+/).filter(Boolean) : [];
 
   showConsole(container, "⏳ Searching...");
 
-  const url = new URL(baseUrl()+"/api/search");
+  // 3) Appel serveur (il ne filtre plus par q)
+  const url = new URL(baseUrl() + "/api/search");
   if (machine) url.searchParams.set("machine_name", machine);
-  if (date) url.searchParams.set("date", date);
-  if (q) url.searchParams.set("q", q);
+  if (date)    url.searchParams.set("date", date);
 
-  try{
+  try {
     const res = await fetch(url.toString());
     const json = await res.json();
-    if (!json.results || !json.results.length){
-      showConsole(container, "(No Results)");
+
+    if (!json.results || !json.results.length) {
+      showConsole(container, "(No results)");
       return;
     }
+
+    // 4) Déchiffrement + filtrage côté client
+    const filtered = [];
+    for (const r of json.results) {
+      const { ts, cipher } = parseServerLine(r.line);
+      let plain = cipher;
+      try { plain = xorDecryptHex(cipher, key); } catch {}
+
+      // Si des mots-clés sont saisis, on exige que CHAQUE terme soit présent
+      if (terms.length) {
+        const hay = (plain || "").toLowerCase();
+        const ok = terms.every(t => hay.includes(t));
+        if (!ok) continue;
+      }
+
+      filtered.push({ machine: r.machine, date: r.date, line: `${ts} ${plain}` });
+    }
+
+    // 5) Affichage
+    if (!filtered.length) { showConsole(container, "(No results)"); return; }
+
     const table = document.createElement("table");
-    table.innerHTML = `<thead><tr><th>Computer</th><th>Date</th><th>Line</th></tr></thead><tbody></tbody>`;
+    table.innerHTML = `
+      <thead><tr><th>Machine</th><th>Date</th><th>Line</th></tr></thead>
+      <tbody></tbody>`;
     const tb = table.querySelector("tbody");
 
-    json.results.forEach(r=>{
+    filtered.forEach(r => {
       const tr = document.createElement("tr");
-      let line = r.line;
-      try { line = xorDecryptHex(r.line, key); } catch {}
-      tr.innerHTML = `<td>${r.machine}</td><td>${r.date}</td><td>${line}</td>`;
+      tr.innerHTML = `<td>${r.machine}</td><td>${r.date}</td><td>${r.line}</td>`;
       tb.appendChild(tr);
     });
 
     container.innerHTML = "";
     container.appendChild(table);
-  } catch(e){
-    showConsole(container, "❌ Error: "+e.message);
+  } catch (e) {
+    showConsole(container, "❌ Error: " + e.message);
   }
 }
-
 // =====================================
 // MANAGER (machines → dates → log)
 // =====================================

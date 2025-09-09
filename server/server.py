@@ -59,14 +59,16 @@ def save_data():
 # --------------------------------
 @app.route("/api/search", methods=["GET"])
 def search_logs():
+    """
+    Renvoie des lignes BRUTES (toujours chiffrées) selon machine/date.
+    Le filtrage par mots-clés se fera côté front après déchiffrement.
+    """
     machine = (request.args.get("machine_name") or "").strip()
     date_str = (request.args.get("date") or "").strip()
-    query    = (request.args.get("q") or "").strip().lower()
 
-    terms = [t for t in query.split() if t]
     results = []
-
     files_to_check = []
+
     if machine:
         machine_dir = DATA_FOLDER / machine
         if not machine_dir.is_dir():
@@ -83,19 +85,16 @@ def search_logs():
                 else:
                     files_to_check.extend(sorted(machine_dir.glob("log_*.txt")))
 
-    # Lire les fichiers (mais pas de décryptage ici)
     for path in files_to_check:
         if path.exists():
             machine_name = path.parent.name
             log_date     = path.stem.replace("log_", "")
             with open(path, "r", encoding="utf-8") as f:
                 for line in f:
-                    L = line.rstrip("\n")
-                    if not terms or any(term in L.lower() for term in terms):
-                        results.append({"machine": machine_name, "date": log_date, "line": L})
+                    L = line.rstrip("\n")  # ex: "[2025-09-09 11:05:02]\tENC:...."
+                    results.append({"machine": machine_name, "date": log_date, "line": L})
 
     return jsonify({"count": len(results), "results": results}), 200
-
 # --------------------------------
 # API: liste des machines
 # --------------------------------
